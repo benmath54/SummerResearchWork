@@ -204,17 +204,14 @@ def non_lin_starting_mat(t,m,a):
     
     return(A_rb,R_rb)
 
-m = 10
+m = 100
 a_int = ([1,1,1,1])
 
 xy = non_lin_xy_mat(a_int, m)
 
-error_array2 = np.empty(m)
+Std_array = 0
 
-a0_array = np.empty(m)
-a1_array = np.empty(m)
-a2_array = np.empty(m)
-a3_array = np.empty(m)
+a_array = 0
 
 for i in range(1,m):
     xy_w_noise = func_noise(xy)
@@ -224,51 +221,48 @@ for i in range(1,m):
     current_a = [0.75,0.75,0.75,0.75]
     result = minimize(chi_square, current_a, jac=True, args=(xy_w_noise), method = 'CG')
     current_a = result.x
-    iterations = 0
     
-    while (abs(delta_a) >= 0.05 or iterations  > 1000):
-        AR = non_lin_starting_mat(xy_w_noise, m, current_a)
+    AR = non_lin_starting_mat(xy_w_noise, m, current_a)
+    A = AR[0]
+    R = AR[1]
+    A_t = np.transpose(A)
+    Covx = np.linalg.inv(np.matmul(A_t,A))
+    RSS = 0
     
-        beta = least_square(AR)
+    for j in range (0,m):
+        RSS += R[j]**2
+    RCSS = RSS/(m-len(current_a))
     
-        a_hold = np.copy(current_a)
-     
-        current_a[0] = float(beta[0] +current_a[0])
-        current_a[1] = float(beta[1] +current_a[1])
-        current_a[2] = float(beta[2] +current_a[2])
-        current_a[3] = float(beta[3] +current_a[3])
-        iterations+= 1
+    Var_a0 = sqrt(RCSS*Covx[0,0])
+    Var_a1 = sqrt(RCSS*Covx[1,1])
+    Var_a2 = sqrt(RCSS*Covx[2,2])
+    Var_a3 = sqrt(RCSS*Covx[3,3])
+    if i == 1:
+        Std_array = np.array([Var_a0,Var_a1,Var_a2,Var_a3])
+        a_array = current_a
+    else:
+        hold = np.array([Var_a0,Var_a1,Var_a2,Var_a3])
+        Std_array = np.vstack((Std_array,hold))
+        a_array = np.vstack((a_array,current_a))
     
-        delta_a = sum(current_a) - sum(a_hold)
+error_a0 = np.empty(m-1)
+error_a1 = np.empty(m-1)
+error_a2 = np.empty(m-1)
+error_a3 = np.empty(m-1)
+for i in range (0,(m-1)):
+    error_a0[i] =  Std_array[i,0]
+    error_a1[i] =  Std_array[i,1]
+    error_a2[i]=  Std_array[i,2]
+    error_a3[i] =  Std_array[i,3]
     
-    a0_array[i] = current_a[0]
-    a1_array[i] = current_a[1]
-    a2_array[i] = current_a[2]
-    a3_array[i] = current_a[3]
-    error = MSE_error(xy, current_a,True)
-    error_array2[i] = error
-    
-error_array2.sort()
-a0_array.sort()
-a1_array.sort()
-a2_array.sort()
-a3_array.sort()
+std_error_a0 = statistics.stdev(error_a0)
+mean_error_a0 = statistics.mean(error_a0)
 
-a0_std = statistics.stdev(a0_array)
-a1_std = statistics.stdev(a1_array)
-a2_std = statistics.stdev(a2_array)
-a3_std = statistics.stdev(a3_array)
+std_error_a1 = statistics.stdev(error_a1)
+mean_error_a1 = statistics.mean(error_a1)
 
-a0_mean = statistics.mean(a0_array)
-a1_mean = statistics.mean(a1_array)
-a2_mean = statistics.mean(a2_array)
-a3_mean = statistics.mean(a3_array)
+std_error_a2 = statistics.stdev(error_a2)
+mean_error_a2 = statistics.mean(error_a2)
 
-a0_ci = (a0_mean-1.96*(a0_std/sqrt(m)),a0_mean+1.96*(a0_std/sqrt(m)))
-a1_ci = (a1_mean-1.96*(a1_std/sqrt(m)),a1_mean+1.96*(a1_std/sqrt(m)))
-a2_ci = (a2_mean-1.96*(a2_std/sqrt(m)),a2_mean+1.96*(a2_std/sqrt(m)))
-a3_ci = (a3_mean-1.96*(a3_std/sqrt(m)),a3_mean+1.96*(a3_std/sqrt(m)))
-
-std_error2= statistics.stdev(error_array2)
-
-mean_error2 = statistics.mean(error_array2)
+std_error_a3 = statistics.stdev(error_a3)
+mean_error_a3 = statistics.mean(error_a3)
